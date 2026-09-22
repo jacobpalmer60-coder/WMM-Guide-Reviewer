@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>WMM Guide Reviewer</title>
+<style>
+  :root {
+    --bg: #f7f5f2;
+    --card: #ffffff;
+    --ink: #1e1b16;
+    --muted: #6b6255;
+    --accent: #a8551f;
+    --accent-ink: #ffffff;
+    --border: #e6e0d6;
+    --star: #d98c2b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17140f;
+      --card: #211d17;
+      --ink: #f1ebe1;
+      --muted: #a99f8e;
+      --accent: #e08a3e;
+      --accent-ink: #17140f;
+      --border: #35302a;
+      --star: #e0a94a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding: 16px;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  header { margin-bottom: 20px; }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  .meta { color: var(--muted); font-size: 0.9rem; }
+  .stats { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 14px; }
+  .stat {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 14px; min-width: 100px;
+  }
+  .stat .n { font-size: 1.3rem; font-weight: 700; }
+  .stat .l { font-size: 0.78rem; color: var(--muted); }
+
+  section { margin-bottom: 24px; }
+  h2 { font-size: 1.05rem; margin: 0 0 10px; }
+
+  .guides { display: flex; flex-wrap: wrap; gap: 8px; }
+  .guide-chip {
+    background: var(--card); border: 1px solid var(--border); border-radius: 999px;
+    padding: 6px 12px; font-size: 0.85rem; cursor: pointer; color: var(--ink);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .guide-chip.active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .guide-chip .avg { font-weight: 700; }
+
+  .controls { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  input[type=search], select {
+    background: var(--card); border: 1px solid var(--border); color: var(--ink);
+    border-radius: 8px; padding: 8px 10px; font-size: 0.9rem;
+  }
+  input[type=search] { flex: 1; min-width: 180px; }
+
+  .review {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px 16px; margin-bottom: 10px;
+  }
+  .review-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .author { font-weight: 600; }
+  .when { color: var(--muted); font-size: 0.8rem; }
+  .stars { color: var(--star); letter-spacing: 1px; font-size: 0.95rem; }
+  .text { margin-top: 8px; line-height: 1.45; font-size: 0.92rem; }
+  .text mark { background: color-mix(in srgb, var(--accent) 30%, transparent); color: inherit; border-radius: 3px; padding: 0 2px; }
+  .empty { color: var(--muted); padding: 20px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1 id="place-name">Tour Guide Reviews</h1>
+    <div class="meta" id="meta-line"></div>
+    <div class="stats">
+      <div class="stat"><div class="n" id="stat-count">0</div><div class="l">reviews scraped</div></div>
+      <div class="stat"><div class="n" id="stat-avg">–</div><div class="l">avg rating</div></div>
+      <div class="stat"><div class="n" id="stat-guides">0</div><div class="l">guides mentioned</div></div>
+    </div>
+  </header>
+
+  <section>
+    <h2>Guides (by average rating in reviews mentioning them)</h2>
+    <div class="guides" id="guide-list"></div>
+  </section>
+
+  <section>
+    <div class="controls">
+      <input type="search" id="search" placeholder="Search reviews or guide names…" />
+      <select id="sort">
+        <option value="newest">Newest first</option>
+        <option value="oldest">Oldest first</option>
+        <option value="rating-desc">Highest rating</option>
+        <option value="rating-asc">Lowest rating</option>
+      </select>
+    </div>
+    <div id="review-list"></div>
+  </section>
+</div>
+
+<script>
+const DATA = /*__REVIEWS_DATA__*/null;
+
+let activeGuide = null;
+
+function starString(rating) {
+  if (!rating) return '';
+  const full = Math.round(rating);
+  return '★'.repeat(full) + '☆'.repeat(5 - full);
+}
+
+function highlight(text, names) {
+  if (!names || !names.length) return escapeHtml(text);
+  let out = escapeHtml(text);
+  const sorted = [...names].sort((a, b) => b.length - a.length);
+  for (const name of sorted) {
+    const re = new RegExp('\\b' + escapeRegex(escapeHtml(name)) + '\\b', 'g');
+    out = out.replace(re, '<mark>$&</mark>');
+  }
+  return out;
+}
+
+function escapeHtml(s) {
+  return (s || '').replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+function escapeRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+function computeGuideStats(reviews) {
+  const map = new Map();
+  for (const r of reviews) {
+    for (const name of (r.guideMentions || [])) {
+      if (!map.has(name)) map.set(name, { name, count: 0, sum: 0 });
+      const g = map.get(name);
+      g.count += 1;
+      if (typeof r.rating === 'number') g.sum += r.rating;
+    }
+  }
+  return [...map.values()]
+    .map((g) => ({ ...g, avg: g.count ? g.sum / g.count : null }))
+    .sort((a, b) => (b.avg || 0) - (a.avg || 0) || b.count - a.count);
+}
+
+function renderGuides(reviews) {
+  const guides = computeGuideStats(reviews);
+  document.getElementById('stat-guides').textContent = guides.length;
+  const el = document.getElementById('guide-list');
+  if (!guides.length) {
+    el.innerHTML = '<div class="empty">No guide names detected automatically — check the review text below manually.</div>';
+    return;
+  }
+  el.innerHTML = guides.map((g) => `
+    <button class="guide-chip ${activeGuide === g.name ? 'active' : ''}" data-guide="${escapeHtml(g.name)}">
+      ${escapeHtml(g.name)} · <span class="avg">${g.avg ? g.avg.toFixed(1) : '–'}★</span> (${g.count})
+    </button>
+  `).join('');
+  el.querySelectorAll('.guide-chip').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const g = btn.dataset.guide;
+      activeGuide = activeGuide === g ? null : g;
+      renderAll();
+    });
+  });
+}
+
+function renderReviews(reviews) {
+  const search = document.getElementById('search').value.trim().toLowerCase();
+  const sort = document.getElementById('sort').value;
+
+  let filtered = reviews.filter((r) => {
+    if (activeGuide && !(r.guideMentions || []).includes(activeGuide)) return false;
+    if (search) {
+      const hay = `${r.author} ${r.text} ${(r.guideMentions || []).join(' ')}`.toLowerCase();
+      if (!hay.includes(search)) return false;
+    }
+    return true;
+  });
+
+  filtered = filtered.slice().sort((a, b) => {
+    if (sort === 'rating-desc') return (b.rating || 0) - (a.rating || 0);
+    if (sort === 'rating-asc') return (a.rating || 0) - (b.rating || 0);
+    const ad = a.approxDate ? new Date(a.approxDate).getTime() : 0;
+    const bd = b.approxDate ? new Date(b.approxDate).getTime() : 0;
+    return sort === 'oldest' ? ad - bd : bd - ad;
+  });
+
+  const el = document.getElementById('review-list');
+  if (!filtered.length) {
+    el.innerHTML = '<div class="empty">No reviews match.</div>';
+    return;
+  }
+  el.innerHTML = filtered.map((r) => `
+    <div class="review">
+      <div class="review-head">
+        <span class="author">${escapeHtml(r.author || 'Anonymous')}</span>
+        <span class="stars">${starString(r.rating)}</span>
+        <span class="when">${escapeHtml(r.relativeDate || '')}</span>
+      </div>
+      <div class="text">${highlight(r.text, r.guideMentions)}</div>
+    </div>
+  `).join('');
+}
+
+function renderAll() {
+  const reviews = (DATA && DATA.reviews) || [];
+  renderGuides(reviews);
+  renderReviews(reviews);
+}
+
+function init() {
+  const reviews = (DATA && DATA.reviews) || [];
+  document.getElementById('place-name').textContent = (DATA && DATA.place) || 'Tour Guide Reviews';
+  document.getElementById('meta-line').textContent = DATA
+    ? `Scraped ${new Date(DATA.scrapedAt).toLocaleString()} · ${DATA.sourceUrl}`
+    : 'No data — run npm run scrape && npm run build.';
+  document.getElementById('stat-count').textContent = reviews.length;
+  const rated = reviews.filter((r) => typeof r.rating === 'number');
+  const avg = rated.length ? rated.reduce((s, r) => s + r.rating, 0) / rated.length : null;
+  document.getElementById('stat-avg').textContent = avg ? avg.toFixed(2) : '–';
+
+  document.getElementById('search').addEventListener('input', renderAll);
+  document.getElementById('sort').addEventListener('change', renderAll);
+
+  renderAll();
+}
+
+init();
+</script>
+</body>
+</html>
