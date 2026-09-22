@@ -1,0 +1,23 @@
+{
+  "name": "wmm-guide-reviewer",
+  "version": "1.0.0",
+  "description": "Scrapes Google Maps reviews for the World Museum of Mining and builds a page for comparing tour guides.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jacobpalmer60-coder/WMM-Guide-Reviewer.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/jacobpalmer60-coder/WMM-Guide-Reviewer/issues"
+  },
+  "homepage": "https://github.com/jacobpalmer60-coder/WMM-Guide-Reviewer#readme",
+  "dependencies": {
+    "playwright": "^1.63.0"
+  }
+}
